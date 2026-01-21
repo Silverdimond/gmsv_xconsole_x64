@@ -1,10 +1,8 @@
-#ifdef _WIN32
-#include <Windows.h>
-#else
+
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/stat.h>
-#endif
+
 
 #include <cstring>
 #include <cstdint>
@@ -24,16 +22,14 @@
 #include <logging.h>
 #endif
 
-#ifdef _WIN32
-static HANDLE serverPipe = INVALID_HANDLE_VALUE;
-#else
+
 const char* EOL_SEQUENCE = "<EOL>\0";
 const char* PIPE_NAME_OUT = "/tmp/garrysmod_console";
 const char* PIPE_NAME_IN = "/tmp/garrysmod_console_in";
 
 static int serverPipe = -1;
 static int serverPipeIn = -1;
-#endif
+
 
 static volatile bool serverShutdown = false;
 static volatile bool serverConnected = false;
@@ -50,9 +46,6 @@ public:
 		const CLoggingSystem::LoggingChannel_t* chan = LoggingSystem_GetChannel(pContext->m_ChannelID);
 		const Color* color = &pContext->m_Color;
 		int size = 12 + std::strlen(chan->m_Name) + std::strlen(pMessage);
-#ifndef _WIN32
-		size += 4; // extra 4 for <EOL>\0;
-#endif 
 		MultiLibrary::ByteBuffer buffer;
 		buffer.Reserve(size);
 
@@ -63,10 +56,7 @@ public:
 			color->GetRawColor() <<
 			pMessage;
 
-#ifdef _WIN32
-		if (WriteFile(serverPipe, buffer.GetBuffer(), static_cast<DWORD>(buffer.Size()), nullptr, nullptr) == FALSE)
-			serverConnected = false;
-#else
+
         buffer << "<EOL>";
 
         if (serverPipe == -1)
@@ -81,7 +71,6 @@ public:
                 serverConnected = false; 
             }
         } 
-#endif
     }
 };
 
@@ -97,17 +86,7 @@ static SpewRetval_t EngineSpewReceiver(SpewType_t type, const char* msg)
 	MultiLibrary::ByteBuffer buffer;
 	buffer.Reserve(512);
 
-#ifdef _WIN32
-	buffer <<
-		static_cast<int32_t>(type) <<
-		GetSpewOutputLevel() <<
-		GetSpewOutputGroup() <<
-		color->GetRawColor() <<
-		msg;
 
-	if (WriteFile(serverPipe, buffer.GetBuffer(), static_cast<DWORD>(buffer.Size()), nullptr, nullptr) == FALSE)
-		serverConnected = false;
-#else
 	buffer <<
 		static_cast<int32_t>(type) <<
 		GetSpewOutputLevel() <<
@@ -127,8 +106,6 @@ static SpewRetval_t EngineSpewReceiver(SpewType_t type, const char* msg)
             serverConnected = false; 
         }
     } 
-#endif
-
     return spewFunction(type, msg);
 }
 #endif
@@ -144,50 +121,7 @@ static void RunCommand(std::string cmd)
 	engine_server->ServerCommand(cmd.c_str());
 }
 
-#ifdef _WIN32
-static void ReadIncomingCommands()
-{
-	MultiLibrary::ByteBuffer buffer;
-	buffer.Reserve(255);
-	buffer.Resize(255);
 
-	if (ReadFile(serverPipe, buffer.GetBuffer(), static_cast<DWORD>(buffer.Size()), nullptr, nullptr) == TRUE)
-	{
-		if (buffer.Size() == 0) return;
-
-		std::string cmd;
-		buffer >> cmd;
-		RunCommand(cmd);
-	}
-}
-
-static void ServerThread()
-{
-	while (!serverShutdown)
-	{
-		if (ConnectNamedPipe(serverPipe, nullptr) == FALSE)
-		{
-			DWORD error = GetLastError();
-			if (error == ERROR_NO_DATA)
-			{
-				DisconnectNamedPipe(serverPipe);
-				serverConnected = false;
-			}
-			else if (error == ERROR_PIPE_CONNECTED) {
-				serverConnected = true;
-				ReadIncomingCommands();
-			}
-		}
-		else
-		{
-			serverConnected = true;
-			ReadIncomingCommands();
-		}
-
-		std::this_thread::sleep_for(std::chrono::milliseconds(100));
-	}
-}
-#else
 static void ServerThread()
 {
 	std::vector<uint8_t> dataBuffer(255);
@@ -246,40 +180,17 @@ static int CreateNamedPipe(GarrysMod::Lua::ILuaBase *LUA, const char* pipeName, 
 
 GMOD_MODULE_OPEN()
 {
-#ifdef _WIN32
-	SECURITY_DESCRIPTOR sd;
-	InitializeSecurityDescriptor(&sd, SECURITY_DESCRIPTOR_REVISION);
-	SetSecurityDescriptorDacl(&sd, TRUE, nullptr, FALSE);
 
-	SECURITY_ATTRIBUTES sa;
-	sa.nLength = sizeof(sa);
-	sa.lpSecurityDescriptor = &sd;
-	sa.bInheritHandle = FALSE;
-
-	serverPipe = CreateNamedPipe(
-		"\\\\.\\pipe\\garrysmod_console",
-		PIPE_ACCESS_DUPLEX,
-		PIPE_TYPE_MESSAGE | PIPE_NOWAIT,
-		PIPE_UNLIMITED_INSTANCES,
-		16384,
-		16384,
-		NMPWAIT_USE_DEFAULT_WAIT,
-		&sa
-	);
-
-	if (serverPipe == INVALID_HANDLE_VALUE)
-		LUA->ThrowError( "failed to create named pipe" );
-#else
 serverPipe = CreateNamedPipe(LUA, PIPE_NAME_OUT, O_WRONLY); // Output ONLY
 serverPipeIn = CreateNamedPipe(LUA, PIPE_NAME_IN, O_RDONLY); // Input ONLY
-#endif
-
 	serverThread = std::thread(ServerThread);
 
 #if ARCHITECTURE_IS_X86_64
+LUA->ThrowError( "x86_64" );
 	LoggingSystem_PushLoggingState(false, false);
 	LoggingSystem_RegisterLoggingListener(listener);
 #else
+LUA->ThrowError( "x86" );
 	spewFunction = GetSpewOutputFunc();
 	SpewOutputFunc(EngineSpewReceiver);
 #endif
@@ -300,17 +211,11 @@ GMOD_MODULE_CLOSE()
 	serverShutdown = true;
 	serverThread.join();
 
-#ifdef _WIN32
-	FlushFileBuffers(serverPipe);
-	DisconnectNamedPipe(serverPipe);
-	CloseHandle(serverPipe);
-#else
 	close(serverPipe);
 	unlink(PIPE_NAME_OUT);
 
 	close(serverPipeIn);
 	unlink(PIPE_NAME_IN);
-#endif
 
 	return 0;
 }
