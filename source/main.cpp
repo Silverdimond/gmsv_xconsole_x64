@@ -185,11 +185,11 @@ serverPipeIn = CreateNamedPipe(LUA, PIPE_NAME_IN, O_RDONLY); // Input ONLY
 	serverThread = std::thread(ServerThread);
 
 #if ARCHITECTURE_IS_X86_64
-LUA->ThrowError( "x86_64" );
+//LUA->ThrowError( "x86_64" );
 	LoggingSystem_PushLoggingState(false, false);
 	LoggingSystem_RegisterLoggingListener(listener);
 #else
-LUA->ThrowError( "x86" );
+//LUA->ThrowError( "x86" );
 	spewFunction = GetSpewOutputFunc();
 	SpewOutputFunc(EngineSpewReceiver);
 #endif
