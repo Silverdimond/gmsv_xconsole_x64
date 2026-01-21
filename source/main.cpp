@@ -176,11 +176,17 @@ static int CreateNamedPipe(GarrysMod::Lua::ILuaBase *LUA, const char* pipeName, 
     
     return pipe;
 }
-
+static int CreateLogFile(const char* fileName)
+{
+    int fd = open(fileName, O_WRONLY | O_CREAT | O_APPEND, 0666); 
+    
+    return fd;
+}
 GMOD_MODULE_OPEN()
 {
 
-serverPipe = CreateNamedPipe(LUA, PIPE_NAME_OUT, O_WRONLY); // Output ONLY
+serverPipe = CreateLogFile(LUA, PIPE_NAME_OUT);
+serverConnected = (serverPipe != -1);
 serverPipeIn = CreateNamedPipe(LUA, PIPE_NAME_IN, O_RDONLY); // Input ONLY
 	serverThread = std::thread(ServerThread);
 
@@ -211,7 +217,7 @@ GMOD_MODULE_CLOSE()
 	serverThread.join();
 
 	close(serverPipe);
-	unlink(PIPE_NAME_OUT);
+	//unlink(PIPE_NAME_OUT);
 
 	close(serverPipeIn);
 	unlink(PIPE_NAME_IN);
