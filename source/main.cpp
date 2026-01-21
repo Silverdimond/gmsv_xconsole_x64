@@ -67,21 +67,22 @@ public:
 		if (WriteFile(serverPipe, buffer.GetBuffer(), static_cast<DWORD>(buffer.Size()), nullptr, nullptr) == FALSE)
 			serverConnected = false;
 #else
-		buffer << "<EOL>";
+        buffer << "<EOL>";
 
-		if (serverPipe == -1)
-		{
-			serverConnected = false;
-			return;
-		}
+        if (serverPipe == -1)
+        {
+            serverConnected = false;
+            return;
+        }
 
-		ssize_t result = write(serverPipe, buffer.GetBuffer(), buffer.Size());
-if (result == -1) {
-    if (errno != EAGAIN && errno != EWOULDBLOCK) {
-        serverConnected = false; 
-    }
+        ssize_t result = write(serverPipe, buffer.GetBuffer(), buffer.Size());
+        if (result == -1) {
+            if (errno != EAGAIN && errno != EWOULDBLOCK) {
+                serverConnected = false; 
+            }
+        } 
 #endif
-	}
+    }
 };
 
 ILoggingListener* listener = new XConsoleListener();
@@ -121,14 +122,14 @@ static SpewRetval_t EngineSpewReceiver(SpewType_t type, const char* msg)
 		return spewFunction(type, msg);
 	}
  ssize_t result = write(serverPipe, buffer.GetBuffer(), buffer.Size());
-if (result == -1) {
-    if (errno != EAGAIN && errno != EWOULDBLOCK) {
-        serverConnected = false; 
-    }
-}
+    if (result == -1) {
+        if (errno != EAGAIN && errno != EWOULDBLOCK) {
+            serverConnected = false; 
+        }
+    } 
 #endif
 
-	return spewFunction(type, msg);
+    return spewFunction(type, msg);
 }
 #endif
 
