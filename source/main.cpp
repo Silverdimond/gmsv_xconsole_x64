@@ -185,7 +185,7 @@ static int CreateLogFile(const char* fileName)
 GMOD_MODULE_OPEN()
 {
 
-serverPipe = CreateLogFile(LUA, PIPE_NAME_OUT);
+serverPipe = CreateLogFile(PIPE_NAME_OUT);
 serverConnected = (serverPipe != -1);
 serverPipeIn = CreateNamedPipe(LUA, PIPE_NAME_IN, O_RDONLY); // Input ONLY
 	serverThread = std::thread(ServerThread);
