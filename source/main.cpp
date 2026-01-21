@@ -120,7 +120,7 @@ static SpewRetval_t EngineSpewReceiver(SpewType_t type, const char* msg)
 		serverConnected = false;
 		return spewFunction(type, msg);
 	}
-ssize_t result = write(serverPipe, buffer.GetBuffer(), buffer.Size());
+ ssize_t result = write(serverPipe, buffer.GetBuffer(), buffer.Size());
 if (result == -1) {
     if (errno != EAGAIN && errno != EWOULDBLOCK) {
         serverConnected = false; 
