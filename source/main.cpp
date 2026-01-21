@@ -66,11 +66,7 @@ public:
         //}
 const char* testMsg = "Test write to log from XConsole\n";
 write(serverPipe, testMsg, strlen(testMsg));
-ssize_t result = write(serverPipe, buffer.GetBuffer(), buffer.Size());
-if (result == -1) {
-} else {
     fsync(serverPipe); 
-}
         ssize_t result = write(serverPipe, buffer.GetBuffer(), buffer.Size());
         if (result == -1) {
             if (errno != EAGAIN && errno != EWOULDBLOCK) {
@@ -195,11 +191,7 @@ serverPipe = CreateLogFile(PIPE_NAME_OUT);
 serverConnected = (serverPipe != -1);
 const char* testMsg = "Test write to log from open\n";
 write(serverPipe, testMsg, strlen(testMsg));
-ssize_t result = write(serverPipe, buffer.GetBuffer(), buffer.Size());
-if (result == -1) {
-} else {
-    fsync(serverPipe); 
-}
+
 serverPipeIn = CreateNamedPipe(LUA, PIPE_NAME_IN, O_RDONLY); // Input ONLY
 	serverThread = std::thread(ServerThread);
 
