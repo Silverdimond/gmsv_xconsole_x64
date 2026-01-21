@@ -75,8 +75,11 @@ public:
 			return;
 		}
 
-		if (write(serverPipe, buffer.GetBuffer(), buffer.Size()) == -1)
-			serverConnected = false;
+		ssize_t result = write(serverPipe, buffer.GetBuffer(), buffer.Size());
+if (result == -1) {
+    if (errno != EAGAIN && errno != EWOULDBLOCK) {
+        serverConnected = false; 
+    }
 #endif
 	}
 };
@@ -117,9 +120,12 @@ static SpewRetval_t EngineSpewReceiver(SpewType_t type, const char* msg)
 		serverConnected = false;
 		return spewFunction(type, msg);
 	}
-
-	if (write(serverPipe, buffer.GetBuffer(), buffer.Size()) == -1)
-		serverConnected = false;
+ssize_t result = write(serverPipe, buffer.GetBuffer(), buffer.Size());
+if (result == -1) {
+    if (errno != EAGAIN && errno != EWOULDBLOCK) {
+        serverConnected = false; 
+    }
+}
 #endif
 
 	return spewFunction(type, msg);
@@ -223,30 +229,17 @@ static void ServerThread()
 	}
 }
 
-static int CreateNamedPipe(GarrysMod::Lua::ILuaBase *LUA, const char* pipeName)
+static int CreateNamedPipe(GarrysMod::Lua::ILuaBase *LUA, const char* pipeName, int flags)
 {
-	struct stat sb;
-	if (stat(pipeName, &sb) == 0 && !(sb.st_mode & S_IFDIR))
-	{
-		unlink(pipeName);
-	}
+    struct stat sb;
+    if (stat(pipeName, &sb) == 0) {
+        unlink(pipeName);
+    }
 
-   	if (mkfifo(pipeName, 0666) == -1)
-	{
-		LUA->ThrowError( "failed to create named pipe (mkfifo)" );
-		return -1;
-	}
-	else
-	{
-		int pipe = open(pipeName, O_RDWR | O_NONBLOCK);
-		if (pipe == -1)
-		{
-			LUA->ThrowError( "failed to create named pipe (open)" );
-		}
-
-		serverConnected = pipe != -1;
-		return pipe;
-	}
+    mkfifo(pipeName, 0666);
+    int pipe = open(pipeName, flags | O_NONBLOCK); 
+    
+    return pipe;
 }
 #endif
 
@@ -276,8 +269,8 @@ GMOD_MODULE_OPEN()
 	if (serverPipe == INVALID_HANDLE_VALUE)
 		LUA->ThrowError( "failed to create named pipe" );
 #else
-	serverPipe = CreateNamedPipe(LUA, PIPE_NAME_OUT);
-	serverPipeIn = CreateNamedPipe(LUA, PIPE_NAME_IN);
+serverPipe = CreateNamedPipe(LUA, PIPE_NAME_OUT, O_WRONLY); // Output ONLY
+serverPipeIn = CreateNamedPipe(LUA, PIPE_NAME_IN, O_RDONLY); // Input ONLY
 #endif
 
 	serverThread = std::thread(ServerThread);
