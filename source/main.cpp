@@ -176,7 +176,6 @@ static int CreateNamedPipe(GarrysMod::Lua::ILuaBase *LUA, const char* pipeName, 
     
     return pipe;
 }
-#endif
 
 GMOD_MODULE_OPEN()
 {
